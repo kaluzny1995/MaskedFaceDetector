@@ -32,7 +32,8 @@ def inference(image,
               conf_thresh=0.3,
               iou_thresh=0.4,
               target_shape=(360, 360),
-              draw_result=True
+              draw_result=True,
+              return_imgarray=False
               ):
     '''
     Main function of detection inference
@@ -41,7 +42,7 @@ def inference(image,
     :param iou_thresh: the IOU threshold of NMS
     :param target_shape: the model input size.
     :param draw_result: whether to daw bounding box to the image.
-    :param show_result: whether to display the image.
+    :param return_imgarray: whether to return image or rather image numpy array.
     :return:
     '''
     img = np.copy(image)
@@ -86,6 +87,9 @@ def inference(image,
                 color = (255, 0, 0)
             cv2.rectangle(img, (x, y), (w, h), color, 3)
         output_info.append([class_id, conf, x, y, w, h])
+    
+    if return_imgarray:
+        return output_info, img
 
     img_output = Image.fromarray(img)
     return output_info, img_output

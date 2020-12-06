@@ -17,7 +17,7 @@ predictor = dlib.shape_predictor('models/shape_predictor_68_face_landmarks.dat')
 
 os.chdir(os.path.dirname(os.getcwd()))
 
-def detect_facial_landmarks(image):
+def detect_facial_landmarks(image, return_imgarray=False):
     # copy original image and convert another copy to grayscale
     output = np.array(image)
     gray = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2GRAY)
@@ -40,14 +40,27 @@ def detect_facial_landmarks(image):
             cv2.circle(output, (x, y), 1, (0, 0, 255), -1)
         output_info[name] = pts
     
+    if return_imgarray:
+        return output_info, output
+    
     output = Image.fromarray(output)
     return output_info, output
 
-def get_face_above_jaw(image, jawline_pts, draw_roi=False):
+def get_face_above_jaw(image, jawline_pts, draw_roi=False, return_imgarray=False):
+    img = np.array(image)
     output = np.array(image)
     output_roi = np.array(image)
     
-    jawline_pts = sorted(jawline_pts, key=lambda k: k[0])
+    # expand width of jawline to the edges
+    min_id = np.argmin(np.array(jawline_pts)[:, ::2])
+    min_x = jawline_pts[min_id][0]
+    max_id = np.argmax(np.array(jawline_pts)[:, ::2])
+    max_x = jawline_pts[max_id][0]
+    
+    jawline_pts = list([(int(((jp[0] - min_x)*img.shape[1]) / (max_x - min_x)), jp[1]) for jp in jawline_pts])
+    # restrict jawline to face detection, i.e. reduce curve below face
+    jawline_pts = list([(jp[0], jp[1] if jp[1] <= img.shape[0] else img.shape[0]) for jp in jawline_pts])
+    
     top_left_corner = (jawline_pts[0][0], 0)
     top_right_corner = (jawline_pts[-1][0], 0)
     
@@ -55,9 +68,9 @@ def get_face_above_jaw(image, jawline_pts, draw_roi=False):
     face_polygon = cv2.convexHull(np.array(face_polygon_pts, dtype=np.float32))
     
     # prepare mask image
-    mask_img = np.zeros((image.height, image.width), dtype=np.uint8)
-    for i in range(image.height):
-        for j in range(image.width):
+    mask_img = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
             dist_coeff = cv2.pointPolygonTest(face_polygon, (j, i), True)
             if dist_coeff >= 0:
                 mask_img[i][j] = 255
@@ -73,8 +86,10 @@ def get_face_above_jaw(image, jawline_pts, draw_roi=False):
     output = cv2.bitwise_and(output, output, mask = mask_img)
     mask_img = cv2.cvtColor(mask_img, cv2.COLOR_GRAY2RGB)
     
+    if return_imgarray:
+        return face_polygon_pts, output_roi, mask_img, output
+    
     output_roi = Image.fromarray(output_roi)
     mask_img = Image.fromarray(mask_img)
     output = Image.fromarray(output)
-    
-    return output_roi, mask_img, output
+    return face_polygon_pts, output_roi, mask_img, output

@@ -8,7 +8,10 @@ import cv2
 import numpy as np
 from PIL import Image
 
-def detect_skin(image):
+NoneType = type(None)
+
+
+def _detect(image, bc=None):
     img = np.array(image)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
@@ -25,20 +28,34 @@ def detect_skin(image):
     YCrCb_mask = cv2.morphologyEx(YCrCb_mask, cv2.MORPH_OPEN, np.ones((3,3), np.uint8))
 
     # merge skin detection (YCbCr and hsv)
-    image_mask=cv2.bitwise_and(YCrCb_mask,HSV_mask)
-    image_mask=cv2.medianBlur(image_mask,3)
+    image_mask = cv2.bitwise_and(YCrCb_mask, HSV_mask)
+    image_mask = cv2.medianBlur(image_mask, 3)
     image_mask = cv2.morphologyEx(image_mask, cv2.MORPH_OPEN, np.ones((4,4), np.uint8))
     
     # constructing global mask
     image_mask = cv2.erode(image_mask, None, iterations = 3)  # remove noise
     image_mask = cv2.dilate(image_mask, None, iterations = 3)  # smoothing eroded mask
     
+    return image_mask
+
+
+def detect_skin(image, bc=None, return_imgarray=False):
+    img = np.array(image)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    
+    image_mask = _detect(image)
+    if type(bc) != NoneType:
+        bc_mask = _detect(bc)
+        image_mask = image_mask | bc_mask
+    
     output = cv2.bitwise_and(img, img, mask = image_mask)
     output = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
     image_mask = cv2.cvtColor(image_mask, cv2.COLOR_GRAY2RGB)
     
+    if return_imgarray:
+        return img, image_mask, output
+    
     img = Image.fromarray(img)
     image_mask = Image.fromarray(image_mask)
     output = Image.fromarray(output)
-    
     return img, image_mask, output

@@ -11,19 +11,14 @@ from detecto.utils import reverse_normalize, normalize_transform, _is_iterable
 from detecto import utils, visualize
 
 from src.face_detector import inference
-from src.perc_calculation import non_max_suppression_slow
+from src.perc_calculation import non_max_suppression_slow, intersects
 
 SCORE_THR = 0.7
 OVERLAP_THR = 0.3
 model = Model(device='cpu')
 
-with open('src/models/mm_sc.pkl', 'rb') as f:
-    scaler = pickle.load(f)
-with open('src/models/dt_pos.pkl', 'rb') as f:
-    clf = pickle.load(f)
 
-
-def detect_human_silhouettes(image):
+def detect_human_silhouettes(image, return_imgarray=False):
     img = np.copy(image)
     try:
         labels, boxes, scores = model.predict(img)
@@ -42,55 +37,25 @@ def detect_human_silhouettes(image):
             second_pos = (int(box[2].item()), int(box[3].item()))
             color = (0, 0, 255)
             cv2.rectangle(img, first_pos, second_pos, color, 3)
-
-        img_output = Image.fromarray(img)
         
+        if return_imgarray:
+            return boxes, img
+        
+        img_output = Image.fromarray(img)
         return boxes, img_output
-    else:     
+    else:
+        if return_imgarray:
+            return [], img
+        
         return [], image
 
 
-def detect_human_silhouettes_and_faces(image, highlight_neg=False):
-    silhs, img = detect_human_silhouettes(image)
+def detect_human_silhouettes_and_faces(image, highlight_neg=False, return_imgarray=False):
+    with open('src/models/mm_sc.pkl', 'rb') as f:
+        sc_x, sc_y = tuple(pickle.load(f))
+    with open('src/models/dt_pos.pkl', 'rb') as f:
+        clf = pickle.load(f)
     
-    img_arr = np.array(img)
-    positive_faces, negative_faces = list([]), list([])
-    for silh in silhs:
-        x1, y1, x2, y2 = tuple(np.array(silh, dtype=np.int32))
-        
-        silh_img_arr = img_arr[y1:y2, x1:x2]
-        faces, _ = inference(silh_img_arr)
-        
-        for face in faces:
-            fx1, fy1, fx2, fy2 = tuple(face[2:])
-            s = scaler.transform([[x1, y1, x2, y2, fx1, fy1, fx2, fy2]])
-            p = clf.predict(s)
-            
-            if p[0]:
-                positive_faces.append([fx1+x1, fy1+y1, fx2+x1, fy2+y1])
-            else:
-                negative_faces.append([fx1+x1, fy1+y1, fx2+x1, fy2+y1])
-
-    positive_faces = np.array(positive_faces)
-    negative_faces = np.array(negative_faces)
-    positive_faces = non_max_suppression_slow(positive_faces, overlapThresh=OVERLAP_THR)
-    negative_faces = non_max_suppression_slow(negative_faces, overlapThresh=OVERLAP_THR)
-
-    for p in positive_faces:
-        color = (0, 255, 0)
-        cv2.rectangle(img_arr, (int(p[0]), int(p[1])), (int(p[2]), int(p[3])), color, 3)
-    if highlight_neg:
-        for n in negative_faces:
-            color = (255, 0, 0)
-            cv2.rectangle(img_arr, (int(n[0]), int(n[1])), (int(n[2]), int(n[3])), color, 3)
-
-    img_output = Image.fromarray(img_arr)
-    
-    return positive_faces, negative_faces, img_output
-
-
-'''
-def detect_human_silhouettes_and_faces(image, highlight_neg=False):
     silhs, img = detect_human_silhouettes(image)
     img_arr = np.array(img)
     faces, _ = inference(np.array(image))
@@ -104,13 +69,17 @@ def detect_human_silhouettes_and_faces(image, highlight_neg=False):
         for silh in silhs:
             x1, y1, x2, y2 = tuple(np.array(silh, dtype=np.int32))
             
-            # if face is in silhouette region
-            if x1>=fx1 and fx2<=x2 and y1>=fy1 and fy2<=y2:
-                s = scaler.transform([[x1, y1, x2, y2, fx1, fy1, fx2, fy2]])
+            # if exists intersection between silhouette and face rectangles
+            if intersects(x1, y1, x2, y2, fx1, fy1, fx2, fy2):
+                s_x = np.array(sc_x.transform([[x1, x2]])).flatten()
+                f_x = np.array(sc_x.transform([[fx1, fx2]])).flatten()
+                s_y = np.array(sc_y.transform([[y1, y2]])).flatten()
+                f_y = np.array(sc_y.transform([[fy1, fy2]])).flatten()
+                s = np.array([[s_x[0], s_y[0], s_x[1], s_y[1], f_x[0], f_y[0], f_x[1], f_y[1]]])
                 p = clf.predict(s)
             
-                votes.append(1 if p[0] else 0)
-
+                votes.append(p.flatten()[0])
+        
         if np.any(votes):
             positive_faces.append([fx1, fy1, fx2, fy2])
         else:
@@ -129,7 +98,8 @@ def detect_human_silhouettes_and_faces(image, highlight_neg=False):
             color = (255, 0, 0)
             cv2.rectangle(img_arr, (int(n[0]), int(n[1])), (int(n[2]), int(n[3])), color, 3)
 
-    img_output = Image.fromarray(img_arr)
+    if return_imgarray:
+        return positive_faces, negative_faces, img_arr
     
+    img_output = Image.fromarray(img_arr)
     return positive_faces, negative_faces, img_output
-'''

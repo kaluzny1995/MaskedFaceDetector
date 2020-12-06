@@ -14,7 +14,7 @@ nose_cascade = cv2.CascadeClassifier('models/Nariz.xml')
 
 os.chdir(os.path.dirname(os.getcwd()))
 
-def detect_face_parts(image, scale=SCALE, neighbors=NEIGHBORS):
+def detect_face_parts(image, scale=SCALE, neighbors=NEIGHBORS, return_imgarray=False):
     gray = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2GRAY)
     
     output_info = dict({'eyes': list([]), 'mouths': list([]), 'noses': list([])})
@@ -23,17 +23,20 @@ def detect_face_parts(image, scale=SCALE, neighbors=NEIGHBORS):
     eyes = eye_cascade.detectMultiScale(gray)
     for ex, ey, ew, eh in eyes:
     	output_info['eyes'].append(((ex, ey), (ex+ew, ey+eh)))
-    	output = cv2.rectangle(output, (ex, ey), (ex+ew, ey+eh), (0,255,0), 2)
+    	output = cv2.ellipse(output, (int(ex+0.5*ew), int(ey+0.5*eh)), (int(0.5*ew), int(0.5*eh)) ,0,0,360,(0,255,0),2)
         
     mouths = mouth_cascade.detectMultiScale(gray)
     for mx, my, mw, mh in mouths:
     	output_info['mouths'].append(((mx, my), (mx+mw, my+mh)))
-    	output = cv2.rectangle(output, (mx, my), (mx+mw, my+mh), (0,0,255), 2)
+    	output = cv2.ellipse(output, (int(mx+0.5*mw), int(my+0.5*mh)), (int(0.5*mw), int(0.5*mh)) ,0,0,360,(0,0,255),2)
     
     noses = nose_cascade.detectMultiScale(gray)
     for nx, ny, nw, nh in noses:
     	output_info['noses'].append(((nx, ny), (nx+nw, ny+nh)))
-    	output = cv2.rectangle(output, (nx, ny), (nx+nw, ny+nh), (255,255,0), 2)
+    	output = cv2.ellipse(output, (int(nx+0.5*nw), int(ny+0.5*nh)), (int(0.5*nw), int(0.5*nh)) ,0,0,360,(255,255,0),2)
+    
+    if return_imgarray:
+        return output_info, output
     
     output = Image.fromarray(output)
     return output_info, output
