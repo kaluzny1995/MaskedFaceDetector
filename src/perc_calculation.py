@@ -140,14 +140,16 @@ def calculate_masking_percentage(image, skin_mask, restr_mask, haar_regions, per
     
     output = cv2.bitwise_and(output, output, mask = final_m)
     
+    skin_m_red = cv2.cvtColor(skin_m_red, cv2.COLOR_GRAY2RGB)
     final_m = cv2.cvtColor(final_m, cv2.COLOR_GRAY2RGB)
     
     if return_imgarray:
-        return perc[0], final_m, output
+        return perc[0], skin_m_red, final_m, output
     
+    skin_m_red = Image.fromarray(skin_m_red)
     final_m = Image.fromarray(final_m)
     output = Image.fromarray(output)
-    return perc[0], final_m, output
+    return perc[0], skin_m_red, final_m, output
     
 def draw_roi(image, jawline_pts, return_imgarray=False):
     output = np.array(image)

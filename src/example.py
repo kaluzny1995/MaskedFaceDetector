@@ -12,6 +12,8 @@ from src.human_skin_detector import detect_skin
 from src.perc_calculation import calculate_masking_percentage, draw_roi, masking_mask
 
 
+BRIGHNESS = 180
+CONTRAST = 180
 PERC_THR = 0.5
 TRANSPARENCY = 0.25
 
@@ -32,11 +34,11 @@ def example(image, highlight_masking=False, return_imgarray=False):
         face_jawline_pts, _, face_restr_mask, _ = get_face_above_jaw(face_arr, face_landmarks['jaw'], return_imgarray=True)
         rois.append(face_jawline_pts)
         # decrease face brightness and increase contrast
-        face_arr_bc = apply_brightness_contrast(face_arr, return_imgarray=True)
+        face_arr_bc = apply_brightness_contrast(face_arr, brightness=BRIGHNESS, contrast=CONTRAST, return_imgarray=True)
         # detect skin on face
         _, face_skin_mask, _ = detect_skin(face_arr, face_arr_bc, return_imgarray=True)
         # calculate masking percentage
-        face_perc, final_mask, _ = calculate_masking_percentage(face_arr, face_skin_mask, face_restr_mask, face_parts, perc_thr=PERC_THR)
+        face_perc, _, final_mask, _ = calculate_masking_percentage(face_arr, face_skin_mask, face_restr_mask, face_parts, perc_thr=PERC_THR)
         percs.append(face_perc)
         # get masking mask
         m_mask = masking_mask(final_mask, face_restr_mask)
@@ -62,8 +64,8 @@ def example(image, highlight_masking=False, return_imgarray=False):
         # face rectangle (green)
         color = (0, 255, 0)
         cv2.rectangle(img, tuple(face[:2]), tuple(face[2:]), color, 6)
-        # RoI polygon (blue)
-        color = (0, 0, 255)
+        # RoI polygon (yellow)
+        color = (255, 255, 0)
         for i in range(len(roi)):
             start = roi[i]
             start = (start[0] + face[0], start[1] + face[1])
