@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from src.face_detector import inference
 from src.human_silhouette_detector import detect_human_silhouettes_and_faces
 from src.haar_detector import detect_face_parts
-from src.brightness_contrast import apply_brightness_contrast
-from src.facial_landmarks_detector import detect_facial_landmarks, get_face_above_jaw
+from src.brightness_contrast import clahe
+from src.facial_landmarks_detector import detect_facial_landmarks, get_face_between_jaw_and_forehead
 from src.human_skin_detector import detect_skin
 from src.perc_calculation import calculate_masking_percentage, draw_roi, masking_mask
 
@@ -31,14 +31,14 @@ def example(image, highlight_masking=False, return_imgarray=False):
         # detect facial landmarks (HOG)
         face_landmarks, _ = detect_facial_landmarks(face_arr, return_imgarray=True)
         # restrict face area to area above the face jawline, get roi
-        face_jawline_pts, _, face_restr_mask, _ = get_face_above_jaw(face_arr, face_landmarks['jaw'], return_imgarray=True)
+        face_jawline_pts, _, face_restr_mask, face_ae_mask, _ = get_face_between_jaw_and_forehead(face_arr, face_landmarks['jaw'], face_landmarks['forehead'], face_landmarks['left_eye'], face_landmarks['right_eye'], return_imgarray=True)
         rois.append(face_jawline_pts)
         # decrease face brightness and increase contrast
-        face_arr_bc = apply_brightness_contrast(face_arr, brightness=BRIGHNESS, contrast=CONTRAST, return_imgarray=True)
+        face_arr_clahe = clahe(face_arr, return_imgarray=True)
         # detect skin on face
-        _, face_skin_mask, _ = detect_skin(face_arr, face_arr_bc, return_imgarray=True)
+        _, face_skin_mask, _ = detect_skin(face_arr, face_arr_clahe, return_imgarray=True)
         # calculate masking percentage
-        face_perc, _, final_mask, _ = calculate_masking_percentage(face_arr, face_skin_mask, face_restr_mask, face_parts, perc_thr=PERC_THR)
+        face_perc, _, final_mask, _ = calculate_masking_percentage(face_arr, face_skin_mask, face_restr_mask, face_ae_mask, face_parts, perc_thr=PERC_THR)
         percs.append(face_perc)
         # get masking mask
         m_mask = masking_mask(final_mask, face_restr_mask)
@@ -74,7 +74,7 @@ def example(image, highlight_masking=False, return_imgarray=False):
             cv2.line(img, start, end, color, 4)
         # percentage 0.0001 precision (red)
         color = (255, 0, 0)
-        cv2.putText(img, f'{np.round(perc, 4)}%', (face[0] + 2, face[1] - 2),
+        cv2.putText(img, f'{np.round(perc*100, 4)}%', (face[0] + 2, face[1] - 2),
                         cv2.FONT_HERSHEY_PLAIN, 3, color, 5)
     
     if return_imgarray:
