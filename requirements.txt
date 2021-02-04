@@ -12,3 +12,4 @@ torchvision==0.8.2
 detecto==1.2.0
 dlib==19.21.1
 imutils==0.5.4
+jupyter
