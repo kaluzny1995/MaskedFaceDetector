@@ -1,0 +1,14 @@
+numpy
+pandas
+matplotlib
+csv
+pickle
+tqdm
+scikit-learn
+opencv-python==4.5.1.48
+Pillow==8.1.0
+torch==1.7.1
+torchvision==0.8.2
+detecto==1.2.0
+dlib==19.21.1
+imutils==0.5.4
